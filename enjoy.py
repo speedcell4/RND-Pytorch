@@ -1,14 +1,15 @@
-import torch
-from torch.multiprocessing import Pipe
-from torch.distributions.categorical import Categorical
+import os
 
 import gym
 import numpy as np
-import os
+import torch
+from torch.distributions.categorical import Categorical
+from torch.multiprocessing import Pipe
 
-from envs import AtariEnvironment
 from arguments import get_args
+from envs import AtariEnvironment
 from model import CnnActorCriticNetwork
+
 
 def get_action(model, device, state):
     state = torch.Tensor(state).to(device)
@@ -16,6 +17,7 @@ def get_action(model, device, state):
     action_dist = Categorical(action_probs)
     action = action_dist.sample()
     return action.data.cpu().numpy().squeeze()
+
 
 def main():
     args = get_args()
@@ -38,7 +40,7 @@ def main():
         return
     num_worker = 1
     sticky_action = False
-        
+
     model = CnnActorCriticNetwork(input_size, output_size, args.use_noisy_net)
     model = model.to(device)
 
@@ -49,20 +51,20 @@ def main():
 
     parent_conn, child_conn = Pipe()
     work = AtariEnvironment(
-      	args.env_name,
-        is_render, 
-       	0, 
-       	child_conn, 
-       	sticky_action=sticky_action, 
-       	p=args.sticky_action_prob,
-       	max_episode_steps=args.max_episode_steps)
+        args.env_name,
+        is_render,
+        0,
+        child_conn,
+        sticky_action=sticky_action,
+        p=args.sticky_action_prob,
+        max_episode_steps=args.max_episode_steps)
     work.start()
 
-    #states = np.zeros([num_worker, 4, 84, 84])
+    # states = np.zeros([num_worker, 4, 84, 84])
     states = torch.zeros(num_worker, 4, 84, 84)
 
     while True:
-        actions = get_action(model, device, torch.div(states,  255.))
+        actions = get_action(model, device, torch.div(states, 255.))
 
         parent_conn.send(actions)
 
@@ -71,6 +73,7 @@ def main():
         next_states.append(next_state)
         states = torch.from_numpy(np.stack(next_states))
         states = states.type(torch.FloatTensor)
+
 
 if __name__ == '__main__':
     main()

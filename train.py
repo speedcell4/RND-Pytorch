@@ -1,20 +1,14 @@
-import numpy as np
 import os
 
-import torch.nn.functional as F
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
+from torch import optim
+from tensorboardX import SummaryWriter
 from torch.distributions.categorical import Categorical
 from torch.multiprocessing import Pipe
 
-from model import CnnActorCriticNetwork, RNDModel
+from arguments import get_args
 from envs import *
 from utils import RunningMeanStd, RewardForwardFilter
-from arguments import get_args
 
-from tensorboardX import SummaryWriter
 
 def get_action(model, device, state):
     state = torch.Tensor(state).to(device)
@@ -63,7 +57,8 @@ def make_train_data(reward, done, value, gamma, gae_lambda, num_step, num_worker
     return discounted_return.reshape([-1]), adv.reshape([-1])
 
 
-def train_model(args, device, output_size, model, rnd, optimizer, s_batch, target_ext_batch, target_int_batch, y_batch, adv_batch, next_obs_batch, old_action_probs):
+def train_model(args, device, output_size, model, rnd, optimizer, s_batch, target_ext_batch, target_int_batch, y_batch,
+                adv_batch, next_obs_batch, old_action_probs):
     epoch = 3
     update_proportion = 0.25
     s_batch = torch.FloatTensor(s_batch).to(device)
@@ -77,7 +72,8 @@ def train_model(args, device, output_size, model, rnd, optimizer, s_batch, targe
     forward_mse = nn.MSELoss(reduction='none')
 
     with torch.no_grad():
-        action_probs_old_list = torch.stack(old_action_probs).permute(1, 0, 2).contiguous().view(-1, output_size).to(device)
+        action_probs_old_list = torch.stack(old_action_probs).permute(1, 0, 2).contiguous().view(-1, output_size).to(
+            device)
 
         m_old = Categorical(action_probs_old_list)
         log_prob_old = m_old.log_prob(y_batch)
@@ -141,10 +137,10 @@ def main():
 
     is_render = False
     if not os.path.exists(args.save_dir):
-	    os.makedirs(args.save_dir)
+        os.makedirs(args.save_dir)
     model_path = os.path.join(args.save_dir, args.env_name + '.model')
     predictor_path = os.path.join(args.save_dir, args.env_name + '.pred')
-    target_path = os.path.join(args.save_dir, args.env_name + '.target')    
+    target_path = os.path.join(args.save_dir, args.env_name + '.target')
 
     writer = SummaryWriter(log_dir=args.log_dir)
 
@@ -157,7 +153,7 @@ def main():
     model = model.to(device)
     rnd = rnd.to(device)
     optimizer = optim.Adam(list(model.parameters()) + list(rnd.predictor.parameters()), lr=args.lr)
-   
+
     if args.load_model:
         if args.cuda:
             model.load_state_dict(torch.load(model_path))
@@ -170,13 +166,13 @@ def main():
     for idx in range(args.num_worker):
         parent_conn, child_conn = Pipe()
         work = AtariEnvironment(
-        	args.env_name,
-            is_render, 
-        	idx, 
-        	child_conn, 
-        	sticky_action=args.sticky_action, 
-        	p=args.sticky_action_prob,
-        	max_episode_steps=args.max_episode_steps)
+            args.env_name,
+            is_render,
+            idx,
+            child_conn,
+            sticky_action=args.sticky_action,
+            p=args.sticky_action_prob,
+            max_episode_steps=args.max_episode_steps)
         work.start()
         works.append(work)
         parent_conns.append(parent_conn)
@@ -184,7 +180,7 @@ def main():
 
     states = np.zeros([args.num_worker, 4, 84, 84])
 
-    sample_env_index = 0   # Sample Environment index to log
+    sample_env_index = 0  # Sample Environment index to log
     sample_episode = 0
     sample_rall = 0
     sample_step = 0
@@ -240,8 +236,8 @@ def main():
             next_obs = np.stack(next_obs)
 
             # total reward = int reward + ext Reward
-            intrinsic_reward = compute_intrinsic_reward(rnd, device, 
-                ((next_obs - obs_rms.mean) / np.sqrt(obs_rms.var)).clip(-5, 5))
+            intrinsic_reward = compute_intrinsic_reward(rnd, device,
+                                                        ((next_obs - obs_rms.mean) / np.sqrt(obs_rms.var)).clip(-5, 5))
             intrinsic_reward = np.hstack(intrinsic_reward)
             sample_i_rall += intrinsic_reward[sample_env_index]
 
@@ -287,7 +283,8 @@ def main():
         # Step 2. calculate intrinsic reward
         # running mean intrinsic reward
         total_int_reward = np.stack(total_int_reward).transpose()
-        total_reward_per_env = np.array([discounted_reward.update(reward_per_step) for reward_per_step in total_int_reward.T])
+        total_reward_per_env = np.array(
+            [discounted_reward.update(reward_per_step) for reward_per_step in total_int_reward.T])
         mean, std, count = np.mean(total_reward_per_env), np.std(total_reward_per_env), len(total_reward_per_env)
         reward_rms.update_from_moments(mean, std ** 2, count)
 
@@ -331,10 +328,10 @@ def main():
         # -----------------------------------------------
 
         # Step 5. Training!
-        train_model(args, device, output_size, model, rnd, optimizer, 
-                        np.float32(total_state) / 255., ext_target, int_target, total_action,
-                        total_adv, ((total_next_obs - obs_rms.mean) / np.sqrt(obs_rms.var)).clip(-5, 5),
-                        total_action_probs)
+        train_model(args, device, output_size, model, rnd, optimizer,
+                    np.float32(total_state) / 255., ext_target, int_target, total_action,
+                    total_adv, ((total_next_obs - obs_rms.mean) / np.sqrt(obs_rms.var)).clip(-5, 5),
+                    total_action_probs)
 
         if global_step % (args.num_worker * args.num_step * args.save_interval) == 0:
             print('Now Global Step :{}'.format(global_step))

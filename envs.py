@@ -1,14 +1,12 @@
-import gym
-
-import numpy as np
-
 from collections import deque
 from copy import copy
 
-from torch.multiprocessing import Pipe, Process
+import gym
+from PIL import Image
+from torch.multiprocessing import Process
 
 from model import *
-from PIL import Image
+
 
 class MaxAndSkipEnv(gym.Wrapper):
     def __init__(self, env, is_render, skip=4):
@@ -40,7 +38,7 @@ class MaxAndSkipEnv(gym.Wrapper):
 
     def reset(self, **kwargs):
         return self.env.reset(**kwargs)
-        
+
 
 class MontezumaInfoWrapper(gym.Wrapper):
     def __init__(self, env, room_address):
@@ -152,7 +150,7 @@ class AtariEnvironment(Process):
                     print("[Episode {}({})] Step: {}  Reward: {}  Recent Reward: {}  Visited Room: [{}]".format(
                         self.episode, self.env_idx, self.steps, self.rall, np.mean(self.recent_rlist),
                         info.get('episode', {}).get('visited_rooms', {})))
-                else:    
+                else:
                     print("[Episode {}({})] Step: {}  Reward: {}  Recent Reward: {}".format(
                         self.episode, self.env_idx, self.steps, self.rall, np.mean(self.recent_rlist)))
 
@@ -172,9 +170,9 @@ class AtariEnvironment(Process):
         return self.history[:, :, :]
 
     def pre_proc(self, X):
-        #X = np.array(Image.fromarray(X).convert('L')).astype('float32')
-        #x = cv2.resize(X, (self.h, self.w))
-        #return x
+        # X = np.array(Image.fromarray(X).convert('L')).astype('float32')
+        # x = cv2.resize(X, (self.h, self.w))
+        # return x
         frame = Image.fromarray(X).convert('L')
         frame = np.array(frame.resize((self.h, self.w)))
         return frame.astype(np.float32)

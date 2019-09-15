@@ -1,6 +1,5 @@
 import numpy as np
-import torch
-from torch._six import inf
+
 
 class RunningMeanStd(object):
     # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
@@ -20,8 +19,8 @@ class RunningMeanStd(object):
         tot_count = self.count + batch_count
 
         new_mean = self.mean + delta * batch_count / tot_count
-        m_a = self.var * (self.count)
-        m_b = batch_var * (batch_count)
+        m_a = self.var * self.count
+        m_b = batch_var * batch_count
         M2 = m_a + m_b + np.square(delta) * self.count * batch_count / (self.count + batch_count)
         new_var = M2 / (self.count + batch_count)
 

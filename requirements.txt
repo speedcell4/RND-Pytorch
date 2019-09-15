@@ -1,7 +1,5 @@
-python3.6
-pytorch
+torch
 gym
 numpy
-PIL
-argparse
+pillow
 tensorboardX

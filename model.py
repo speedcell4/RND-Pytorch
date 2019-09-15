@@ -1,9 +1,9 @@
-import torch.nn.functional as F
-import torch.nn as nn
-import torch
-import torch.optim as optim
-import numpy as np
 import math
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn import init
 
 
@@ -60,8 +60,8 @@ class NoisyLinear(nn.Module):
 
     def __repr__(self):
         return self.__class__.__name__ + '(' \
-            + 'in_features=' + str(self.in_features) \
-            + ', out_features=' + str(self.out_features) + ')'
+               + 'in_features=' + str(self.in_features) \
+               + ', out_features=' + str(self.out_features) + ')'
 
 
 class Flatten(nn.Module):
